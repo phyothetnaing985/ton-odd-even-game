@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TON Odd/Even Game</title>
+  <script src="https://unpkg.com/@tonconnect/ui@1"></script>
+  <script src="https://unpkg.com/tonweb@0.0.65/dist/tonweb.js"></script>
+  <style>
+    :root {
+      --primary: #0066ff;
+      --success: #00d4aa;
+      --danger: #ff3366;
+      --dark: #0a0a1a;
+      --light: #f8f9fa;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    .container {
+      width: 100%;
+      max-width: 500px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 20px;
+      padding: 30px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      margin-top: 20px;
+    }
+    h1 {
+      font-size: 2.2rem;
+      text-align: center;
+      margin-bottom: 10px;
+      background: linear-gradient(45deg, #00d4ff, #ff00c8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .balance {
+      text-align: center;
+      font-size: 1.1rem;
+      margin: 15px 0;
+      padding: 10px;
+      background: rgba(0,212,255,0.1);
+      border-radius: 10px;
+    }
+    .options {
+      display: flex;
+      gap: 15px;
+      margin: 25px 0;
+    }
+    .option {
+      flex: 1;
+      padding: 20px;
+      border-radius: 15px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 1.3rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      border: 2px solid transparent;
+    }
+    .option.odd {
+      background: linear-gradient(135deg, #ff3366, #ff6699);
+    }
+    .option.even {
+      background: linear-gradient(135deg, #00d4aa, #33ffb4);
+    }
+    .option.selected {
+      border: 2px solid white;
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(255,255,255,0.3);
+    }
+    .bet-amount {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 20px 0;
+    }
+    .bet-amount input {
+      flex: 1;
+      padding: 15px;
+      border-radius: 12px;
+      border: none;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: 1.1rem;
+    }
+    .quick-bets {
+      display: flex;
+      gap: 10px;
+      margin: 10px 0;
+    }
+    .quick-bet {
+      flex: 1;
+      padding: 12px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .quick-bet:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    .place-bet {
+      width: 100%;
+      padding: 18px;
+      background: linear-gradient(45deg, #00d4ff, #ff00c8);
+      border: none;
+      border-radius: 15px;
+      color: white;
+      font-size: 1.3rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: all 0.3s;
+    }
+    .place-bet:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px rgba(0,212,255,0.3);
+    }
+    .result {
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: 15px;
+      text-align: center;
+      font-size: 1.4rem;
+      font-weight: bold;
+      display: none;
+    }
+    .result.win {
+      background: linear-gradient(135deg, #00d4aa, #33ffb4);
+    }
+    .result.lose {
+      background: linear-gradient(135deg, #ff3366, #ff6699);
+    }
+    @media (max-width: 480px) {
+      .container { padding: 20px; }
+      h1 { font-size: 1.8rem; }
+      .option { font-size: 1.1rem; padding: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎲 TON Odd/Even Game</h1>
+    <p style="text-align:center; opacity:0.8;">Bet TON • Win 1.9x</p>
+    
+    <div id="connectButton"></div>
+    
+    <div class="balance" id="balance">Balance: 0 TON</div>
+    
+    <div class="options">
+      <div class="option odd" id="odd">ODD</div>
+      <div class="option even" id="even">EVEN</div>
+    </div>
+    
+    <div class="bet-amount">
+      <input type="number" id="betAmount" placeholder="Enter bet amount" min="0.01" step="0.01" />
+    </div>
+    
+    <div class="quick-bets">
+      <div class="quick-bet" data-amount="0.1">0.1</div>
+      <div class="quick-bet" data-amount="0.5">0.5</div>
+      <div class="quick-bet" data-amount="1">1</div>
+    </div>
+    
+    <button class="place-bet" id="placeBet">PLACE BET</button>
+    
+    <div class="result" id="result"></div>
+  </div>
+
+  <script>
+    const tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+      manifestUrl: 'tonconnect-manifest.json'
+    });
+
+    const connectButton = document.getElementById('connectButton');
+    tonConnectUI.uiOptions = { button: connectButton };
+
+    let selectedOption = null;
+    let balance = 0;
+
+    document.getElementById('odd').onclick = () => selectOption('odd');
+    document.getElementById('even').onclick = () => selectOption('even');
+
+    function selectOption(choice) {
+      selectedOption = choice;
+      document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
+      document.getElementById(choice).classList.add('selected');
+    }
+
+    document.querySelectorAll('.quick-bet').forEach(btn => {
+      btn.onclick = () => document.getElementById('betAmount').value = btn.dataset.amount;
+    });
+
+    document.getElementById('placeBet').onclick = async () => {
+      if (!tonConnectUI.connected) return alert('Connect wallet first!');
+      if (!selectedOption) return alert('Choose ODD or EVEN!');
+      const amount = parseFloat(document.getElementById('betAmount').value);
+      if (!amount || amount < 0.01) return alert('Min bet: 0.01 TON');
+
+      const resultDiv = document.getElementById('result');
+      resultDiv.style.display = 'block';
+      resultDiv.textContent = 'Rolling...';
+      resultDiv.className = 'result';
+
+      setTimeout(() => {
+        const random = Math.floor(Math.random() * 100);
+        const isOdd = random % 2 === 1;
+        const won = (selectedOption === 'odd' && isOdd) || (selectedOption === 'even' && !isOdd);
+
+        if (won) {
+          balance += amount * 0.9;
+          resultDiv.textContent = `🎉 WIN! +${(amount * 0.9).toFixed(2)} TON`;
+          resultDiv.classList.add('win');
+        } else {
+          balance -= amount;
+          resultDiv.textContent = `😔 LOSE! -${amount.toFixed(2)} TON`;
+          resultDiv.classList.add('lose');
+        }
+        document.getElementById('balance').textContent = `Balance: ${balance.toFixed(3)} TON`;
+      }, 1500);
+    };
+
+    tonConnectUI.onStatusChange(async (wallet) => {
+      if (wallet) {
+        const tonweb = new Tonweb(new Tonweb.HttpProvider('https://toncenter.com/api/v2/jsonRPC'));
+        const address = wallet.account.address;
+        const balanceNano = await tonweb.getBalance(address);
+        balance = parseFloat(balanceNano) / 1e9;
+        document.getElementById('balance').textContent = `Balance: ${balance.toFixed(3)} TON`;
+      }
+    });
+  </script>
+</body>
+</html>
